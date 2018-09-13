@@ -1,11 +1,9 @@
 #include "file.h"
 
 int main(int argc, char **argv) {
-	struct image img;
+	image_t img;
 
-	img.filename = argv[1];
-
-	int returnvalue = check_image(&img);
+	int returnvalue = image_init(&img, argv[1]);
 
 	printf("%i\n", returnvalue);
 
