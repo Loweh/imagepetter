@@ -5,13 +5,12 @@
 /*
 	NOTES:
 		ADD ERROR CHECKING WHERE POSSIBLE IN EXISTING FUNCTIONS
-		IMPLEMENT CONVERSION FROM FILE TO PROGRAM
 		IMPLEMENT DRAWING FUNCTIONS
 			-> header and px data as arguments
 			-> if image exists already, use its header and px data as arguments
 		IMPLEMENT SUPPORT FOR DIFFERENT COLOR DEPTHS (BITSPERPIXEL)
 		IMPLEMENT CONVERSION FROM ONE BIT DEPTH TO ANOTHER
-		IMPLEMENT COMPRESSION RELATED FUNCTIONS
+		IMPLEMENT COMPRESSION RELATED FUNCTIONS?
 	////
 */
 
@@ -21,29 +20,33 @@
 
 // Bitmap header structure
 typedef struct {
-	int filesize; // File size in bytes (4 bytes)
-	int width; // Width of image (4 bytes)
-	int height; // Height of image (4 bytes)
-	short bitsperpixel; // Bits per pixel (2 bytes)
-	int compression; // Compression (4 bytes)
-	int imagesize;  // Image size (filesize - DATA_OFFSET) (4 bytes)
-	int xperm; // X pixels per meter (4 bytes)
-	int yperm; // Y pixels per meter (4 bytes)
-	int colorsused; // Colors used (4 bytes)
-	int importantcolors; // Important colors (4 bytes)
+	unsigned int filesize; // File size in bytes (4 bytes)
+	unsigned int width; // Width of image (4 bytes)
+	unsigned int height; // Height of image (4 bytes)
+	unsigned short bitsperpixel; // Bits per pixel (2 bytes)
+	unsigned int compression; // Compression (4 bytes)
+	unsigned int imagesize;  // Image size (filesize - DATA_OFFSET) (4 bytes)
+	unsigned int xperm; // X pixels per meter (4 bytes)
+	unsigned int yperm; // Y pixels per meter (4 bytes)
+	unsigned int colorsused; // Colors used (4 bytes)
+	unsigned int importantcolors; // Important colors (4 bytes)
 } bmp_hdr;
 
 // Pixel structure for 16-bit and 24-bit color
 typedef struct {
-	char red;
-	char green;
-	char blue;
+	unsigned char red;
+	unsigned char green;
+	unsigned char blue;
 } bmp_px_rgb;
 
 // int to 4-byte string, first character holds least significant bits
 void itos(int input, char *output);
 // short to 2-byte string, first character holds least significant bits
 void shtos(short input, char *output);
+// 4-byte string to int, first character holds least significant bits
+int stoi(char *input);
+// 2-byte string to short, first character holds least significant bits
+short stosh(char *input);
 
 // Dynamically creates new bmp_header with the inputted data values (used internally)
 bmp_hdr* bmp_mk_hdr(int height, int width, short bitsperpixel);
@@ -57,6 +60,8 @@ int bmp_mk_img(bmp_hdr *header, bmp_px_rgb *pxdata);
 // Converts raw bitmap header data to bmp_header structure (used internally)
 void bmp_buf_hdr(char *buffer, bmp_hdr *header);
 // Converts raw bitmap pixel data to array of bmp_px_rgb pixels (used internally)
-void bmp_buf_px_rgb(char *buffer, bmp_px_rgb *pxdata);
-// Retrieves data from bitmap file and stores it in the proper structures
-int bmp_get_img(char *filename);
+void bmp_buf_px_24bit(char *buffer, bmp_hdr *header, bmp_px_rgb *pxdata);
+// Retrieves header data from bitmap file and returns a pointer to the header structure holding that data
+bmp_hdr* bmp_get_img_hdr(char *filename);
+// Retrieves pixel data from bitmap file and returns the array of bmp_px_rgb pixels
+bmp_px_rgb* bmp_get_img_px(char *filename, bmp_hdr *header);

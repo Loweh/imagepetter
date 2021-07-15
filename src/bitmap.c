@@ -27,6 +27,32 @@ void shtos(short input, char *output) {
 	}
 }
 
+int stoi(char *input) {
+	// Since local ints can be returned rather easily, unlike local pointers, there is no need for an output argument.
+	int output = 0;
+	
+	for (int i = 0; i < sizeof(int); i++) {
+		unsigned int temp = input[i];
+		temp = temp << i * 8; // Since the least significant bits are in the first character, each character after the first must be left shifed to the proper position
+		output = output | temp;
+	}
+	
+	return output;
+}
+
+short stosh(char *input) {
+	// Local shorts are also easy to return so no output argument needed here either.
+	short output = 0;
+	
+	for (int i = 0; i < sizeof(short); i++) {
+		unsigned short temp = input[i];
+		temp = temp << i * 8; // Since the least significant bits are in the first character, each character after the first must be left shifed to the proper position
+		output = output | temp;
+	}
+	
+	return output;
+}
+
 bmp_hdr* bmp_mk_hdr(int height, int width, short bitsperpixel) {
 	bmp_hdr *header = malloc(sizeof(bmp_hdr));
 	
@@ -149,33 +175,122 @@ void bmp_px_buf_rgb(bmp_px_rgb *pxdata, bmp_hdr *header, char *buffer) {
 
 int bmp_mk_img(bmp_hdr *header, bmp_px_rgb *pxdata) {
 	// Convert header data to string
-	char headerdata[BMP_DATA_OFFSET] = {0}; // Since the header is a fixed size, dynamic memory allocations is not necessary.
-	bmp_hdr_buf(header, headerdata);
+	char hdrbuffer[BMP_DATA_OFFSET] = {0}; // Since the header is a fixed size, dynamic memory allocations is not necessary.
+	bmp_hdr_buf(header, hdrbuffer);
 	// Convert pixel data to string
-	char *pixeldata = malloc(sizeof(char) * header->imagesize);
-	bmp_px_buf_rgb(pxdata, header, pixeldata);
+	char *pxbuffer = malloc(sizeof(char) * header->imagesize);
+	bmp_px_buf_rgb(pxdata, header, pxbuffer);
 	
 	// Write to file
 	FILE *bmp;
 	bmp = fopen("test.bmp", "wb+");	
 	
-	int retvalue = fwrite(headerdata, sizeof(char), sizeof(headerdata), bmp);
-	retvalue = fwrite(pixeldata, sizeof(char), sizeof(char) * header->imagesize, bmp);
+	int retvalue = fwrite(hdrbuffer, sizeof(char), sizeof(hdrbuffer), bmp);
+	retvalue = fwrite(pxbuffer, sizeof(char), header->imagesize, bmp);
 	
-	free(pixeldata);
+	free(pxbuffer);
 	free(header);
 	fclose(bmp);
 	return 0;
 }
 
+
+
 void bmp_buf_hdr(char *buffer, bmp_hdr *header) {
-	// To do
+	int offset = 2; // The signature (2 bytes long) is not needed, so the offset can start after it
+	
+	// File size (4 bytes)
+	header->filesize = stoi(buffer + offset);
+	offset += 16; // The reserved, dataoffset, and infoheader size (all 4 bytes) not needed, so are added to the offset
+	
+	// Width (4 bytes)
+	header->width = stoi(buffer + offset);
+	offset += 4;
+	
+	// Height (4 bytes)
+	header->height = stoi(buffer + offset);
+	offset += 6; // The planes attribute (2 bytes) is not needed, so is added to the offset
+	
+	// Bits per pixel (2 bytes)
+	header->bitsperpixel = stosh(buffer + offset);
+	offset += 2;
+	
+	// Compression (4 bytes)
+	header->compression = stoi(buffer + offset);
+	offset += 4; 
+	
+	// Image size (4 bytes)
+	header->imagesize = stoi(buffer + offset);
+	offset += 4; 
+	
+	// X pixels per meter (4 bytes)
+	header->xperm = stoi(buffer + offset);
+	offset += 4; 
+	
+	// Y pixels per meter (4 bytes)
+	header->yperm = stoi(buffer + offset);
+	offset += 4; 
+	
+	// Colors used (4 bytes)
+	header->colorsused = stoi(buffer + offset);
+	offset += 4; 
+	
+	// Important colors (4 bytes)
+	header->importantcolors = stoi(buffer + offset);
+	offset += 4; 	
 }
 
-void bmp_buf_px_rgb(char *buffer, bmp_px_rgb *pxdata) {
-	// To do
+void bmp_buf_px_24bit(char *buffer, bmp_hdr *header, bmp_px_rgb *pxdata) {	
+	// A scanline's length in bytes
+	int sclbytes = header->imagesize / header->height;
+	
+	for (int i = 0; i < header->height; i++) {
+		for (int k = 0; k < sclbytes; k++) {
+			if (k < header->width * 3) {
+				if (!((k+1) % 3)) { // If the byte is the third byte for that pixel, it is red
+					pxdata[(i * header->width) + k/3].red = buffer[(i * sclbytes) + k];
+				} else if (!((k+2) % 3)) { // If the byte is the second byte for that pixel, it is green
+					pxdata[(i * header->width) + k/3].green = buffer[(i * sclbytes) + k];
+				} else { // If the byte is the first byte for that pixel, it is blue
+					pxdata[(i * header->width) + k/3].blue = buffer[(i * sclbytes) + k];
+				}
+			}
+		}
+	}
 }
 
-int bmp_get_img(char *filename) {
-	// To do
+bmp_hdr* bmp_get_img_hdr(char *filename) {
+	FILE *bmp;
+	bmp = fopen(filename, "rb+");	
+	
+	bmp_hdr *header = malloc(sizeof(bmp_hdr));
+	char hdrbuffer[BMP_DATA_OFFSET] = {0};
+	
+	fread(hdrbuffer, sizeof(char), BMP_DATA_OFFSET, bmp);
+	
+	bmp_buf_hdr(hdrbuffer, header);
+	
+	// Since the user will want to use the header after this function is called, it cannot be
+	// freed here, so it is important to remember to free it once it's done being used.
+	fclose(bmp);
+	return header;
+}
+
+bmp_px_rgb* bmp_get_img_px(char *filename, bmp_hdr *header) {
+	FILE *bmp;
+	bmp = fopen(filename, "rb+");	
+	fseek(bmp, BMP_DATA_OFFSET, SEEK_SET); // Offset the read to get past the header
+	
+	bmp_px_rgb *pxdata = malloc(sizeof(bmp_px_rgb) * header->height * header->width);
+	char *pxbuffer = malloc(sizeof(char) * header->imagesize); 
+	
+	fread(pxbuffer, sizeof(char), header->imagesize, bmp);
+
+	bmp_buf_px_24bit(pxbuffer, header, pxdata);
+	
+	// Since the user will want to use the pxdata after this function is called, it cannot be
+	// freed here, so it is important to remember to free it once it's done being used.
+	free(pxbuffer);
+	fclose(bmp);
+	return pxdata;
 }
