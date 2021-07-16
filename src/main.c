@@ -4,65 +4,89 @@
 #include "bitmap.h"
 
 int main() {
-	/*
-	int height = 0, width = 0;
+	printf("Select an operation: \n"
+		   "    Write (W)\n"
+		   "    Read (R)\n");
+		   
+	char result = '\0';
+	scanf("%c", &result);
 	
-	printf("Please enter the following information: \n");
+	if (result == 'W') {
+		char filename[260] = {0}; // 260 is apparently the maximum file path length in Windows
+		int height = 0, width = 0, bitsperpixel = 0;
 	
-	printf("Width: ");
-	scanf("%u", &width);
+		printf("Please enter the following information: \n");
 	
-	printf("Height: ");
-	scanf("%u", &height);
+		printf("Filename: ");
+		scanf("%s", filename);
 	
-	bmp_hdr *header = bmp_mk_hdr(height, width, 24);
-	bmp_px_rgb *pxdata = malloc(sizeof(bmp_px_rgb) * height * width);
+		printf("Width: ");
+		scanf("%u", &width);
 	
-	time_t t;
-	srand((unsigned) time(&t));
+		printf("Height: ");
+		scanf("%u", &height);
 	
-	for (int i = 0; i < height * width; i++) {
-		pxdata[i].red = rand() % 255;
-		pxdata[i].green = rand() % 255;
-		pxdata[i].blue = rand() % 255;
-	}
+		printf("Bit depth: ");
+		scanf("%u", &bitsperpixel);
 	
-	bmp_mk_img(header, pxdata); */
+		bmp_hdr *header = bmp_mk_hdr(height, width, bitsperpixel);
+		bmp_px_rgb *pxdata = malloc(sizeof(bmp_px_rgb) * height * width);
 	
-	char filename[260] = {0}; // 260 is apparently the maximum file path length in Windows
+		time_t t;
+		srand((unsigned) time(&t));
 	
-	printf("Please enter a filename: ");
-	scanf("%s", filename);
-	
-	bmp_hdr *header = bmp_get_img_hdr(filename);
-	bmp_px_rgb *pxdata = bmp_get_img_px(filename, header);
-	
-	
-	printf("Header details:\n");
-	printf("filesize: %i ", header->filesize);
-	printf("width: %i ", header->width);
-	printf("height: %i\n", header->height);
-	printf("bit depth: %hu ", header->bitsperpixel);
-	printf("compression: %i ", header->compression);
-	printf("imagesize: %i\n", header->imagesize);
-	printf("xperm: %i ", header->xperm);
-	printf("yperm: %i ", header->yperm);	
-	printf("colorsused: %i\n", header->colorsused);
-	printf("importantcolors: %i\n", header->importantcolors);
-	
-	getchar();
-	
-	printf("Pixel details:\n");
-	
-	for (int i = 0; i < header->height; i++) {
-		printf("scanline %i:\n", i+1);
-		for (int k = 0; k < header->width; k++) {
-			printf("px #%i, R: %i G: %i B: %i\n", k+1, pxdata[(i * header->width) + k].red, pxdata[(i * header->width) + k].green, pxdata[(i * header->width) + k].blue);
+		for (int i = 0; i < height * width; i++) {
+			if (bitsperpixel > 1) {
+				pxdata[i].red = rand() % 255;
+				pxdata[i].green = rand() % 255;
+				pxdata[i].blue = rand() % 255;
+			} else {
+				pxdata[i].red = rand() % 2 ? 255 : 0;
+				pxdata[i].green = pxdata[i].red;
+				pxdata[i].blue = pxdata[i].red;
+			}	
 		}
-	}
+		
+		bmp_mk_img(filename, header, pxdata);
+		
+		free(header);
+		free(pxdata);
+	} else if (result == 'R') {
+		char filename[260] = {0}; // 260 is apparently the maximum file path length in Windows
 	
-	free(header);
-	free(pxdata);
+		printf("Filename: ");
+		scanf("%s", filename);
+	
+		bmp_hdr *header = bmp_get_img_hdr(filename);
+		bmp_px_rgb *pxdata = bmp_get_img_px(filename, header);
+	
+	
+		printf("Header details:\n");
+		printf("filesize: %i ", header->filesize);
+		printf("width: %i ", header->width);
+		printf("height: %i\n", header->height);
+		printf("bit depth: %hi ", header->bitsperpixel);
+		printf("compression: %i ", header->compression);
+		printf("imagesize: %i\n", header->imagesize);
+		printf("xperm: %i ", header->xperm);
+		printf("yperm: %i ", header->yperm);	
+		printf("colorsused: %i\n", header->colorsused);
+		printf("importantcolors: %i\n", header->importantcolors);
+	
+		getchar();
+	
+		printf("Pixel details:\n");
+	
+		for (int i = 0; i < header->height; i++) {
+			printf("scanline %i:\n", i+1);
+			for (int k = 0; k < header->width; k++) {
+				printf("px #%i, R: %i G: %i B: %i\n", k+1, pxdata[(i * header->width) + k].red, pxdata[(i * header->width) + k].green, pxdata[(i * header->width) + k].blue);
+			}
+		}
+		
+		free(header);
+		free(pxdata);
+	}
 	
 	printf("Press 'e' to exit.\n");
 	while(getchar() != 'e');
